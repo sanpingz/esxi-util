@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 """common ESXi operation"""
+__author__ = 'sanpingz (sanping.zhang@alcatel-lucent.com'
 
 import re
 import os
 import time
+import sys
 from os.path import join
 
 ATE_LAB = join(os.getenv('DS'),'ATE_LAB')
@@ -15,6 +17,7 @@ def print_cmd(func):
 	def _deco(args):
 		resp = func(args)
 		if resp:
+			resp = resp.strip()
 			print '%s => %s' % (args, resp)
 		else:
 			print args
@@ -24,6 +27,14 @@ def print_cmd(func):
 @print_cmd
 def run(args):
 	return os.popen(args).read()
+
+def doit(args):
+        return os.popen(args).read()
+
+def getstate(id):
+	cmd = r'vim-cmd vmsvc/power.getstate %s|sed -n -e 2p' % id
+	resp = doit(cmd)
+	return resp.strip() if resp else 'unknown'
 	
 class VM(object):
 	def __init__(self, name):

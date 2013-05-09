@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 """create image on ESXi
-Usage: create_image cz001|cz002|cz003"""
+Usage: create_image cz001|cz002|cz003
+"""
+__author__ = 'sanpingz (sanping.zhang@alcatel-lucent.com'
 
-import sys
 from common import *
 
 def create(name):
