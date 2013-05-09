@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+"""create image on ESXi
+Usage: create_image cz001|cz002|cz003"""
+
+import sys
+from common import *
+
+def create(name):
+	name = VMs[LABs.index(name)]
+	clean_image = join(join(ATE_LAB,'backup'), name)
+	dst_image = join(ATE_LAB, name)
+	vm = VM(name)
+	vm.poweroff()
+	state = vm.state
+	if not state or not re.match(r'Powered off', state):
+		print state
+		sys.exit()
+	run("ls %s|grep -v %s|awk '{print \"%s/\"$0}'|xargs rm -rf" % (dst_image, VMX, dst_image))
+	if not os.path.isfile(join(dst_image, VMX)):
+		run(r'cp %s/%s %s' % (clean_image, VMX, dst_image))
+	print 'start to clone image %s' % name
+	resp = run('vmkfstools -i %s -d thin %s' % (join(clean_image, VMDK), join(dst_image, VMDK)))
+	if re.match('Failed', resp) or not os.path.isfile(join(dst_image, VMDK)):
+		print 'cloning image failed'
+		sys.exit()
+	print 'cloning image successfull'
+	vm.poweron()
+	
+	
+	
+if __name__ == '__main__':
+	if len(sys.argv) > 1 and sys.argv[1] in LABs:
+		create(sys.argv[1])
+	else:
+		print __doc__
+		sys.exit()	
