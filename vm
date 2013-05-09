@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """wrapper of vim-cmd for easy VM operation 
 Usage: vm all					# show all VMs
-       vm state cz001|cz002|cz003		# show state of VMs
-       vm poweron|poweroff|reboot [vmid]	# operate VM, vmid can be got by run 'vm state [lab]' or 'vm all'
+       vm [state cz001|cz002|cz003]		# show state of VMs
+       vm [poweron|poweroff|reboot] [vmid]	# operate VM, vmid can be got by running 'vm state [lab]' or 'vm all'
 """
 __author__ = 'sanpingz (sanping.zhang@alcatel-lucent.com'
 
