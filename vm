@@ -48,7 +48,8 @@ def main():
 	        if not str(id).isdigit():
 	        	print __doc__
 	                sys.exit()
-	        print doit(r'vim-cmd vmsvc/power.reboot %s' % id)
+	        #print doit(r'vim-cmd vmsvc/power.reboot %s' % id)
+	        print doit(r'vim-cmd vmsvc/power.off %s && vim-cmd vmsvc/power.on %s' % (id, id))
 	elif sys.argv[1] == 'shutdown':
 		raise Exception('Not support now')
 		id = sys.argv[2]
