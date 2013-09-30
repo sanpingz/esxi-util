@@ -8,11 +8,13 @@ import time
 import sys
 from os.path import join
 
-ATE_LAB = join(os.getenv('DS'),'ATE_LAB')
-LABs = ['cz001', 'cz002', 'cz003']
+DS=r'/vmfs/volumes/datastore1'
+ATE_LAB = join(DS, 'ATE_LAB')
+LABs = ['vn001', 'vn002', 'vn003']
 VMs = ['diskfull_a01', 'diskfull_b01', 'diskfull_c01']
 VMDK = 'diskfull.vmdk'
 VMX = 'diskfull.vmx'
+
 def print_cmd(func):
 	def _deco(args):
 		resp = func(args)
