@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+"""Create clean image on remote ESXi server
+Usage: create_image <labname>		# e.g. vn001, vn002, vn003
+"""
+
+__author__ = 'sanpingz (sanping.zhang@alcatel-lucent.com'
+
+from esxi import run
+from os.path import split
+import sys
+
+if __name__ == '__main__':
+	cmd = sys.argv[0].split(r'/')[-1]
+	if len(sys.argv) < 2:
+		print __doc__
+		sys.exit()
+	else:
+		run(cmd, sys.argv[1:])

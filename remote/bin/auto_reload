@@ -1,0 +1,162 @@
+#!/usr/bin/env python
+"""Auto reload lab
+Usage: auto_reload <lab> <load>
+	lab: vn001, vn002, vn003
+	load: e.g. R2810.00
+"""
+
+__author__ = 'sanpingz (sanping.zhang@alcatel-lucent.com'
+
+import sys
+import re
+import os
+import time
+from os.path import join, split
+from simpleSFTP import transport, SFTPConnect
+from os import system
+from simpleSSH import SSHConnect
+import esxi
+
+LABs = ['vn001', 'vn002', 'vn003']
+ATE_PATH = r'/local/ATE_LAB'
+LOCAL_LOADS = join(ATE_PATH, 'loads')
+REMOTE_PATH = r'/home/fsbu/FS_loads'
+LOCAL_CMD = r'/local/sanpingz/bin'
+
+def connect(host, username, password, timeout=6, times=3):
+	print 'connecting to %s' % host
+	u = timeout/times
+	while True:
+		try:
+			timeout -= u
+			t = transport(host, username=username, password=password)
+		except Exception, e:
+			if timeout>=u:
+				time.sleep(u)
+			else:
+				print e
+				sys.exit(1)
+		else:
+			break
+	print 'established connection'
+	return t
+
+def create_image():
+	print '%s creating image %s' % ('*'*15, '*'*15)
+	try:
+		if system(r'%s/%s %s' % (LOCAL_CMD, 'create_image', lab)):
+			sys.exit(1)
+	except KeyboardInterrupt:
+		system(r"kill -9 `ps -ef|grep 'python /local/sanpingz/bin/auto_reload'|grep -v grep|awk '{print $2}'`")
+	#esxi.nrun('create_image', [lab])
+	print '%s creating image completed %s' % ('*'*15, '*'*15)
+
+def prepare_files():
+	print '%s preparing files %s' % ('*'*15, '*'*15)
+	dst = join(LOCAL_LOADS,load_zip)
+	if load_zip not in os.listdir(LOCAL_LOADS):
+		from auth import auth
+		u,p = auth
+		try:
+			t = connect('qd-lsp1', u, p, timeout=6, times=3)
+			sftp = SFTPConnect(t)
+			src = r'%s/%s/ATCA/%s' % (REMOTE_PATH, load, load_zip)
+			print ' ship %s from qd-lsp1' % load_zip,
+			#print sftp.listdir(split(src)[0])
+			sftp.get(src, dst)
+			print ' ... done'
+			t.close()
+		except Exception, e:
+			print e
+			t.close()
+			sys.exit(1)
+	else:
+		print 'find %s at local' % load_zip
+	print '%s preparing files ready %s' % ('*'*15, '*'*15)
+
+def ship_files():
+	print '%s shipping files to lab %s' % ('*'*15, '*'*15)
+	dst = join(LOCAL_LOADS,load_zip)
+	print 'wait for VM powering on ...'
+	time.sleep(40)
+	if os.path.isfile(dst):
+		try:
+			t = connect(lab, 'root', 'newsys', timeout=60, times=6)
+			sftp = SFTPConnect(t)
+			src = join(LOCAL_LOADS,load_zip)
+			dst = join(r'/data0', load_zip)
+			if load_zip in sftp.listdir(r'/data0'):
+				print 'find %s under /data0' % load_zip
+			else:
+				print 'ship %s to %s' % (load_zip, lab),
+				sftp.put(src, dst)
+				print ' ... done'
+			sftp.chmod(dst, 0755)
+			r = re.findall('R\d{2}', load)
+			scripts = '%s/%s/%s' % (ATE_PATH, 'scripts', r[0])
+			if os.path.isdir(scripts):
+				for st in os.listdir(scripts):
+					src = join(scripts, st)
+					dst = join(r'/data0/scdt', st)
+					print 'ship %s to %s' % (st, lab),
+					sftp.put(src, dst)
+					print ' ... done'
+			else:
+				print 'not available scripts for %s' % load
+			t.close()
+		except Exception, e:
+			print e
+			try:
+				t.close()
+			except: pass
+			sys.exit(1)
+	print '%s shipping files completed %s' % ('*'*15, '*'*15)
+
+def ate_install():
+	print '%s start reload lab %s' % ('*'*15, '*'*15)	
+	cmd_base = r'/data0/scdt'
+	ssh = SSHConnect(lab, password='newsys')
+	ssh.run(r'chmod +x %s/*' % cmd_base)
+	time.sleep(1)
+	cmd = join(cmd_base,'auto_install')
+	try:
+		ssh.nrun(cmd)
+	except KeyboardInterrupt, e:
+		print e
+		ssh.close()
+		#ssh.run(r"kill -9 `ps -ef|grep auto_install|grep -v grep|awk '{print $2}'`")
+		print '%s failed to reload %s' % ('*'*15, '*'*15)
+		sys.exit()
+	except Exception, e:
+		ssh.close()
+		print e
+		print '%s failed to reload %s' % ('*'*15, '*'*15)
+		sys.exit()
+	else:
+		print '%s succeed in reloading %s' % ('*'*15, '*'*15)
+
+if __name__ == '__main__':
+	if len(sys.argv) < 3:
+		print __doc__
+		sys.exit()
+	else:
+		lab = sys.argv[1]
+		load = sys.argv[2]
+		if lab not in LABs:
+			print 'lab name not correct'
+			sys.exit()
+		if not re.match(r'^R?\d{2}(\.?\d{2}){2,3}$', load):
+			print 'load name not correct. e.g. R2810.00, or R2810.00.01'
+			sys.exit()
+
+		rlist = re.findall('\d{2}', load)
+		if len(rlist) == 3:
+			load_zip = 'ATCA.LSS%s.%s.%s.zip' % tuple(rlist)
+		else:
+			load_zip = 'ATCA.LSS%s.%s.%s.%s.zip' % tuple(rlist)
+
+		create_image()
+		prepare_files()
+		ship_files()
+		ate_install()
+
